@@ -12,9 +12,20 @@
     - GPIO12 (D6) - зеленый цвет RGB-светодиода (для платы типа ESP8266 Witty);
     - GPIO13 (D7) - синий цвет RGB-светодиода (для платы типа ESP8266 Witty);
     - GPIO15 (D8) - красный цвет RGB-светодиода (для платы типа ESP8266 Witty).
-*/
-#define DEBUG 1
 
+    1 LSB = VCC Voltage / 4096
+    Connection:
+      OUT – Wemos Mini A0
+      VCC – Wemos Mini 3.3v
+      GND – Wemos Mini Gnd
+      SCL – Wemos Mini D1  GPIO5
+      SDA – Wemos Mini D2  GPIO4
+*/
+
+//#define DEBUG 1
+
+#include <Wire.h>
+#include <Adafruit_MCP4725.h>
 #include <FS.h>
 #include <ESP8266WiFi.h>
 #include <ESP8266WebServer.h>
@@ -36,7 +47,7 @@
 #define FILE_MCP4725 "/mcp4725.txt"     //Имя файла для сохранения настроек и статистики РЕЛЕ
 #define FILE_NETWORK "/net.txt"         //Имя файла для сохранения настроек сети
 
-#define DEVICE_TYPE "esplink_ms_"
+#define DEVICE_TYPE "esplink_75v_"
 #define TIMEOUT_T_broadcastTXT 100000   //таймаут отправки скоростных сообщений T_broadcastTXT, мкс
 
 #define DEFAULT_AP_NAME "ESP"           //имя точки доступа запускаемой по кнопке
@@ -57,6 +68,10 @@ String ping = "ping";
 unsigned int speedT = 200;  //период отправки данных, миллисек
 
 unsigned int unity = 0;
+unsigned int unity_old = 0;
+bool outState = 0;
+bool outState_old = 0;
+
 bool dataUpdateBit = false;
 
 
@@ -64,14 +79,17 @@ WebSocketsServer webSocket(81);
 ESP8266WebServer server(80);
 WiFiClient espClient;
 WiFiUDP ntpUDP;
+Adafruit_MCP4725 MCP4725;
 
 
 void setup() {
   Serial.begin(115200);
+  MCP4725.begin(0x60);
+  MCP4725.setVoltage(0, false);
   Serial.println("\n");
   pinMode(GPIO_LED_WIFI, OUTPUT);
-  pinMode(GPIO_BUTTON, INPUT_PULLUP);
   digitalWrite(GPIO_LED_WIFI, HIGH);
+  pinMode(GPIO_BUTTON, INPUT_PULLUP);
 
   SPIFFS.begin();
 
@@ -112,6 +130,28 @@ void loop() {
   webSocket.loop();
   server.handleClient();
   MDNS.update();
+
+
+  if (outState == 0 && outState != outState_old) {
+    MCP4725.setVoltage(0, false);
+    outState_old = outState;
+    unity_old = 0;
+#ifdef DEBUG
+    Serial.println("Set output Voltage OFF");
+#endif
+  }
+
+
+  if (outState == 1 && unity != unity_old ) {
+    MCP4725.setVoltage(unity, false);
+    outState_old = outState;
+    unity_old = unity;
+#ifdef DEBUG
+    Serial.print("Set output Voltage unity: ");
+    Serial.println(unity);
+#endif
+  }
+
 
 
   //Отправка Speed данных клиентам при условии что данныее обновились и клиенты подключены

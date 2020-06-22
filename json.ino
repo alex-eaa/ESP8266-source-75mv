@@ -2,6 +2,7 @@ String serializationToJson_index()
 {
   DynamicJsonDocument doc(1024);
   doc["unity"] = unity;
+  doc["outState"] = outState;
   String output = "";
   serializeJson(doc, output);
   return output;
@@ -39,6 +40,7 @@ void deserealizationFromJson(const String &json) {
   }
   else if (doc["page"].as<String>() == "index") {
     unity = doc["unity"];
+    outState = doc["outState"];
     dataUpdateBit = 1;
   }
   else if (doc["page"].as<String>() == "setup") {

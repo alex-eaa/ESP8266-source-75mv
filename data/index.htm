@@ -32,7 +32,7 @@ button {width:100px; height:35px; font-size:20px;}
 			</li>
 		</ul>
 	</div>
-	<div id="part3"></div>
+	<div id="part3">-</div>
 	<div id="part2">Главная</div>
 </div>
 
@@ -74,7 +74,8 @@ button {width:100px; height:35px; font-size:20px;}
 let dataSend = {
 	page: "index",
 	unity: 70,
-	outState: 0
+	outState: 0,
+	vBatPercent: 0
 };
 let data = dataSend;
 
@@ -86,7 +87,8 @@ function change(n) {
 	else   dataSend["unity"] += n;
 
 	updateAllPage();
-	if (dataSend["outState"] == 1)	 startSendData("JSON");
+	//if (dataSend["outState"] == 1)	 startSendData("JSON");
+	startSendData("JSON");
 };
 
 
@@ -112,7 +114,12 @@ function updateAllPage() {
 		document.getElementById("unity").className = "colortextgray";
 		document.getElementById("mv").className = "colortextgray";
 	}
+
+	document.getElementById("part3").innerHTML = dataSend["vBatPercent"]+"%";
+	if (dataSend["vBatPercent"]<30)  document.getElementById("part3").classList.add("part3A");
+	else document.getElementById("part3").classList.remove("part3A");
 };
+
 
 
 

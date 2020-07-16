@@ -20,9 +20,7 @@ bool saveFile(char *filename)
     JsonArray gtwJsonArray = doc.createNestedArray("gtw");
     for (int n = 0; n < 4; n++)  gtwJsonArray.add(gtw[n]);
   }
-  else if (filename == FILE_MCP4725) {
-    //relay.serialize(&doc, SERIALYZE_FOR_FILE);
-  }
+
 
   File file = SPIFFS.open(filename, "w");
   if (!file) {
@@ -111,9 +109,6 @@ bool loadFile(char *filename) {
     gtw[1] = doc["gtw"][1];           //Serial.println(gtw[1]);
     gtw[2] = doc["gtw"][2];           //Serial.println(gtw[2]);
     gtw[3] = doc["gtw"][3];           //Serial.println(gtw[3]);
-  }
-  else if (filename == FILE_MCP4725) {
-
   }
 
   file.close();

@@ -1,25 +1,21 @@
 /*
-   Добавил файловый менеджер
-   Добавил обновление через вебстраницу "Системные настройки"
-   Автозапуск АР Default, если не найден файл настроек
    Подключение внешних сигналов:
-    - GPIO14 (D5) - вход датчика движения №1;
-    - GPIO5 (D1) - вход датчика движения №2;
-    - GPIO16 (D0) - выход управления реле.
-   Подключение внутренних элементов (для платы типа ESP8266 Witty):
-    - GPIO2 (D4) - голубой wifi светодиод;
-    - GPIO4 (D2) - кнопка, подключена к пину (для платы типа ESP8266 Witty);
-    - GPIO12 (D6) - зеленый цвет RGB-светодиода (для платы типа ESP8266 Witty);
-    - GPIO13 (D7) - синий цвет RGB-светодиода (для платы типа ESP8266 Witty);
-    - GPIO15 (D8) - красный цвет RGB-светодиода (для платы типа ESP8266 Witty).
 
-    1 LSB = VCC Voltage / 4096
-    Connection:
-      OUT – Wemos Mini A0
-      VCC – Wemos Mini 3.3v
-      GND – Wemos Mini Gnd
-      SCL – Wemos Mini D1  GPIO5
-      SDA – Wemos Mini D2  GPIO4
+   Подключение ЦАП MCP4725 12-бит (1 LSB = VCC Voltage / 4096):
+      OUT – A0
+      GND – Gnd
+      VCC – nodeMCU 3.3v
+      SCL – nodeMCU GPIO5 (D1)
+      SDA – nodeMCU GPIO4 (D2)
+
+      Подключение других элементов (для платы типа nodeMCU ESP8266):
+    - GPIO2  (D4) - голубой wifi светодиод;
+    - GPIO14 (D5) - красный светодиод;
+    - GPIO12 (D6) - кнопка запуска с настройками сети по умолчанию;
+
+      Напряжение батареи: верхний предел 100% - 4,2В - 780 единиц на АЦП
+                          нижний предел  0%   - 3,7В - 668 единиц на АЦП
+
 */
 
 //#define DEBUG 1
@@ -35,20 +31,17 @@
 #include <ArduinoJson.h>         /*https://github.com/bblanchon/ArduinoJson 
                                    https://arduinojson.org/?utm_source=meta&utm_medium=library.properties */
 
-#define GPIO_LED_WIFI 2     // номер пина светодиода GPIO2 (D4)
-#define GPIO_LED_RED 15     // пин, красного светодиода 
-#define GPIO_LED_GREEN 12   // пин, зеленого светодиода 
-#define GPIO_LED_BLUE 13    // пин, синего светодиода
-#define GPIO_BUTTON 4       // номер пина кнопки GPIO4 (D2)
-#define GPIO_SENSOR1 14     // пин, вход датчика движения №1
-#define GPIO_SENSOR2 5      // пин, вход датчика движения №2
-#define GPIO_RELAY 16       // пин, выход управления реле
+#define GPIO_LED_WIFI 2      // номер пина светодиода GPIO2 (D4)
+#define GPIO_LED_RED 14      // номер пина красного светодиода GPIO14 (D5)
+#define GPIO_BUTTON 12       // номер пина кнопки GPIO12 (D6) 
 
-#define FILE_MCP4725 "/mcp4725.txt"     //Имя файла для сохранения настроек и статистики РЕЛЕ
 #define FILE_NETWORK "/net.txt"         //Имя файла для сохранения настроек сети
-
 #define DEVICE_TYPE "esplink_75v_"
 #define TIMEOUT_T_broadcastTXT 100000   //таймаут отправки скоростных сообщений T_broadcastTXT, мкс
+#define TIME_BAT_VOLT 5000              //периодичность измерения напряжения батареи, мс
+#define BAT_HIGH_VOLT 93400             //100% - 4,16В - 934 единиц на АЦП, умноженное на 100
+#define BAT_LOW_VOLT 77800              //0%   - 3,46В - 778 единиц на АЦП, умноженное на 100
+#define BAT_DELTA_1_VOLT 156            //разница напряжения в 1% - 0,007В - 1,56 единиц на АЦП, умноженное на 100
 
 #define DEFAULT_AP_NAME "ESP"           //имя точки доступа запускаемой по кнопке
 #define DEFAULT_AP_PASS "11111111"      //пароль для точки доступа запускаемой по кнопке
@@ -65,7 +58,7 @@ char *p_passwordAP = new char[0];
 
 bool sendSpeedDataEnable[] = {0, 0, 0, 0, 0};
 String ping = "ping";
-unsigned int speedT = 200;  //период отправки данных, миллисек
+unsigned int speedT = 500;  //период отправки данных, миллисек
 
 unsigned int unity = 0;
 unsigned int unity_old = 0;
@@ -73,6 +66,12 @@ bool outState = 0;
 bool outState_old = 0;
 
 bool dataUpdateBit = false;
+
+unsigned int startTimeBatVolt = 0;         //вспом. для TIME_BAT_VOLT
+unsigned int startTimeRedLedBlink = 0;     //вспом. для времени мигания красного LED
+
+int vBat = 0;                      //переменная для значения на аналоговом входе
+int vBatPercent = 0;                      //переменная для значения напряжения на аналоговом входе в процентах
 
 
 WebSocketsServer webSocket(81);
@@ -87,8 +86,13 @@ void setup() {
   MCP4725.begin(0x60);
   MCP4725.setVoltage(0, false);
   Serial.println("\n");
+
   pinMode(GPIO_LED_WIFI, OUTPUT);
   digitalWrite(GPIO_LED_WIFI, HIGH);
+
+  pinMode(GPIO_LED_RED, OUTPUT);
+  digitalWrite(GPIO_LED_RED, HIGH);
+
   pinMode(GPIO_BUTTON, INPUT_PULLUP);
 
   SPIFFS.begin();
@@ -121,6 +125,9 @@ void setup() {
 
   webServer_init();      //инициализация HTTP сервера
   webSocket_init();      //инициализация webSocket сервера
+
+  delay(100);
+  readVoltageBat();
 }
 
 
@@ -130,6 +137,28 @@ void loop() {
   webSocket.loop();
   server.handleClient();
   MDNS.update();
+
+  //Периодическое считывание напряжения на аналоговом входе
+  if (millis() - startTimeBatVolt > TIME_BAT_VOLT) {
+    readVoltageBat();
+    startTimeBatVolt = millis();
+  }
+
+  //Мигание красным LED, если напряжение батареи ниже 30% и ниже 10%
+  if (vBatPercent < 30 && vBatPercent >= 10) {
+    if (millis() - startTimeRedLedBlink > 500) {
+      digitalWrite(GPIO_LED_RED, !digitalRead(GPIO_LED_RED));
+      startTimeRedLedBlink = millis();
+    }
+  } else if (vBatPercent < 10) {
+    if (millis() - startTimeRedLedBlink > 150) {
+      digitalWrite(GPIO_LED_RED, !digitalRead(GPIO_LED_RED));
+      startTimeRedLedBlink = millis();
+    }
+  } else {
+    digitalWrite(GPIO_LED_RED, HIGH);
+  }
+
 
 
   if (outState == 0 && outState != outState_old) {
@@ -170,6 +199,19 @@ void loop() {
     dataUpdateBit = 0;
   }
 
+}
+
+
+//Функция считывания напряжения на аналоговом входе и пересчет в проценты
+void readVoltageBat() {
+  vBat = analogRead(A0) * 100;
+  if (vBat < BAT_LOW_VOLT)   vBat = BAT_LOW_VOLT;
+  vBatPercent = (vBat - BAT_LOW_VOLT) / BAT_DELTA_1_VOLT;
+  dataUpdateBit = 1;
+#ifdef DEBUG
+  Serial.print("vBat=");   Serial.println(vBat);
+  Serial.print("vBatPercent=");   Serial.println(vBatPercent);
+#endif
 }
 
 

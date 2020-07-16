@@ -3,6 +3,8 @@ String serializationToJson_index()
   DynamicJsonDocument doc(1024);
   doc["unity"] = unity;
   doc["outState"] = outState;
+  doc["vBatPercent"] = vBatPercent;
+  doc["vBat"] = vBat;
   String output = "";
   serializeJson(doc, output);
   return output;

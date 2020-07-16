@@ -10,7 +10,6 @@ function wsConnect(wsIP) {
 	ws.onopen = function(e) {
   		console.log("WS onConnected");
   		wsState = 1;
-  		changeIndicTypeConnect();
   	};
 
 	ws.onclose = function(e) {
@@ -33,7 +32,6 @@ function wsConnect(wsIP) {
 function startConControl(){
 	console.log('deviceIp=', deviceIp);
 	if (deviceIp!="")   wsConnect(deviceIp);
-	changeIndicTypeConnect();
 }
 
 
@@ -52,7 +50,6 @@ function startSendData(command) {
 		if (wsState==1){
 			console.log('WS TO Server: ', dat);
 			ws.send(dat);
-			unsetIndicConnect();
 		}
 	};
 
@@ -73,27 +70,10 @@ function receivedDataProcessing(strJson){
 		}
 
 		updateAllPage();
-		setIndicConnect();
 	} catch (e) {
 		console.log(e.message); 
 	}
 }
-
-
-
-
-function changeIndicTypeConnect(){
-	if (wsState==1) document.getElementById("part3").innerHTML = "n";
-	else document.getElementById("part3").innerHTML = "-";
-};
-function setIndicConnect(){
-	document.getElementById("part3").classList.add("part3A");
-
-};
-function unsetIndicConnect(){
-	document.getElementById("part3").classList.remove("part3A");
-};
-
 
 
 

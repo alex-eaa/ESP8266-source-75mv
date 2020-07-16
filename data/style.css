@@ -69,16 +69,16 @@ animation-timing-function: ease-out;
 		padding: 4px 0 0 0;
 	}
 	#container #part3{
-		width: 20px;
+		color:#0f6389;
+		width: 50px;
 		float: right;
 		font-size:18px;
-		padding-top: 0px;
+		padding-top: 6px;
 		text-align: center;
 		transition: color 1s;
-		color:#B4B4B4;
 	}
 	#container #part3.part3A{
-		color:#0F6389;
+		color:#FB2617;
 	}
 
 	#menu, #menu ul {

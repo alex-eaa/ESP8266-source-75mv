@@ -38,10 +38,10 @@
 #define FILE_NETWORK "/net.txt"         //Имя файла для сохранения настроек сети
 #define DEVICE_TYPE "esplink_75v_"
 #define TIMEOUT_T_broadcastTXT 100000   //таймаут отправки скоростных сообщений T_broadcastTXT, мкс
-#define TIME_BAT_VOLT 5000              //периодичность измерения напряжения батареи, мс
-#define BAT_HIGH_VOLT 93400             //100% - 4,16В - 934 единиц на АЦП, умноженное на 100
-#define BAT_LOW_VOLT 77800              //0%   - 3,46В - 778 единиц на АЦП, умноженное на 100
-#define BAT_DELTA_1_VOLT 156            //разница напряжения в 1% - 0,007В - 1,56 единиц на АЦП, умноженное на 100
+#define TIME_BAT_VOLT 10000              //периодичность измерения напряжения батареи, мс
+#define BAT_HIGH_VOLT 94500             //100% - 4,22 - 952 единиц на АЦП, умноженное на 100
+#define BAT_LOW_VOLT 72000              //0%   - 3,20В - 778 единиц на АЦП, умноженное на 100
+#define BAT_DELTA_1_VOLT 225            //разница напряжения в 1% - 0,0102В - 2,25 единиц на АЦП, умноженное на 100
 
 #define DEFAULT_AP_NAME "ESP"           //имя точки доступа запускаемой по кнопке
 #define DEFAULT_AP_PASS "11111111"      //пароль для точки доступа запускаемой по кнопке
@@ -205,7 +205,7 @@ void loop() {
 //Функция считывания напряжения на аналоговом входе и пересчет в проценты
 void readVoltageBat() {
   vBat = analogRead(A0) * 100;
-  if (vBat < BAT_LOW_VOLT)   vBat = BAT_LOW_VOLT;
+  //if (vBat < BAT_LOW_VOLT)   vBat = BAT_LOW_VOLT;
   vBatPercent = (vBat - BAT_LOW_VOLT) / BAT_DELTA_1_VOLT;
   dataUpdateBit = 1;
 #ifdef DEBUG
